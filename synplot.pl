@@ -6,9 +6,11 @@ synplot.pl - Make synteny plots for small genomes
 
 =head1 SYNOPSIS
 
-perl synplot.pl -f <fasta1>,<fasta2>,<fasta3> -g <gff1>,<gff2>,<gff3> -o <output_prefix>
+    perl synplot.pl -f <fasta1>,<fasta2>,<fasta3> \
+                    -g <gff1>,<gff2>,<gff3> \
+                    -o <output_prefix>
 
-perl synplot.pl --help
+    perl synplot.pl --help
 
 =head1 DESCRIPTION
 
