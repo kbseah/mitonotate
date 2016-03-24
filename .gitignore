@@ -1,0 +1,6 @@
+./obsolete/*
+plot_synteny_polygons.R
+synteny_plots.pl
+obsolete/hhr2tblout.pl
+obsolete/integrate_Kent_mito_annotations.pl
+obsolete/testhhr_read.pl

@@ -1,0 +1,36 @@
+# Switches for mitonotate tasks
+
+# Predict features (structural annotation)
+prodigal	1
+mitossu	1
+mitolsu	1
+tRNAscan	0
+
+# Concatenate all peptides to single file
+concat_pep	1
+
+# Perform reciprocal Blastp for clustering
+makeblastdb	1
+reciprocal	1
+
+# Ortholog clustering
+FastOrtho	1
+FastOrtho_cluster	1
+
+# Functional annotation of features
+tmhmm	1
+pfam	1
+gravy	1
+sprot	1
+mfannot	1
+mitocogs	1
+
+# Functional annotation of clusters
+hhpred	1
+
+# Read annotations
+read	1
+
+# Write annotations in single table
+writetbl	1
+advertising	1

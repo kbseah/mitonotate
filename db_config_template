@@ -1,0 +1,19 @@
+# Configuration file of database paths for Mitonotate
+
+MFANNOT_BLASTDB	/data/cologne_backup/kent_mito_genomes/combined_mfannot
+SWISSPROT_BLASTDB	/data/db/prokka-1.10/db/kingdom/Mitochondria/sprot
+SWISSPROT_FASTA	/data/db/prokka-1.10/db/kingdom/Mitochondria/sprot
+HHPRED_DB	/data/db/hhpred/uniprot20_2013_03/uniprot20_2013_03
+PFAM_A	/data/db/Pfam/Pfam-A.hmm
+
+# Note: The MitoCOGs files have to be converted to Unix file format (use dos2unix utility)
+MITOCOGS_BLASTDB	/data/db/MitoCOGs/MitoCOGs_sequences.fa
+MITOCOGS_SEQINFO	/data/db/MitoCOGs/MitoCOGs.txt
+MITOCOGS_COGINFO	/data/db/MitoCOGs/MitoCOGs_annotation.txt
+
+# Custom rRNA gene HMMs
+MTSSU_MODEL	/data/cologne_backup/kent_mito_genomes/ciliate_mitochondrial_genomes_3/rRNA_annotations/hmm_models/ciliate_mtSSU.hmm
+MTLSU_MODEL	/data/cologne_backup/kent_mito_genomes/ciliate_mitochondrial_genomes_3/rRNA_annotations/hmm_models/ciliate_mtLSU.hmm
+
+# Gcode file for tRNAscan-SE, for non-standard genetic codes
+GCODE_FILE	/data/cologne_backup/kent_mito_genomes/annotation_pipeline/gcode.4
