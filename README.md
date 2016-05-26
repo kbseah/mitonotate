@@ -1,10 +1,8 @@
 # MITONOTATE
 
+by Brandon Seah (kbseah@mpi-bremen.de)
+
 Annotation pipeline for ciliate mitochondrial genomes.
-
-This software package supplements the following publication:
-
-> Seah et al. XXX. ...
 
 Please refer to built-in help message for more information.
 
