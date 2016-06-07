@@ -141,7 +141,7 @@ my @flags_check = qw (prodigal mitossu mitolsu tRNAscan tmhmm concat_pep FastOrt
 # DBs to check in config file
 my @db_check = qw (MFANNOT_BLASTDB SWISSPROT_BLASTDB SWISSPROT_FASTA HHPRED_DB PFAM_A MITOCOGS_BLASTDB MITOCOGS_SEQINFO MITOCOGS_COGINFO MTSSU_MODEL MTLSU_MODEL GCODE_FILE);
 # Fields to report (keys to %{pep{...}})
-my @toreport = qw (genome length tmhmm gravy pfam sprot_name sprot_eval mfannot_name mfannot_eval mitocogs_hit mitocogs_eval mitocogs_cog mitocogs_func ortho);
+my @toreport = qw (genome startpos endpos dir length tmhmm gravy pfam sprot_name sprot_eval mfannot_name mfannot_eval mitocogs_hit mitocogs_eval mitocogs_cog mitocogs_func ortho);
 
 # Hashes for inputs and files
 my %dep_paths;      # Paths to dependencies
@@ -802,8 +802,11 @@ sub read_prodigal_pep {
     # Get accession numbers of all the protein seq to be annotated
     while (<PEP>) {
         chomp;
-        if ($_ =~ /^>(\w+) #/) {
+        if ($_ =~ /^>(\w+) # (\d+) # (\d+) # (\S+) #/) {
             $pep{$1}{"genome"} = $genome;
+            $pep{$1}{"startpos"} = $2;
+            $pep{$1}{"endpos"} = $3;
+            $pep{$1}{"dir"} = $4;
         }
     }
     close(PEP);
