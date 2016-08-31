@@ -586,7 +586,12 @@ if ($flags{"writegff"} == 1 ) {
     # Seqname source feature start end score strand frame attribute
     foreach my $pepid (sort {$a cmp $b} keys %pep) {
         my @line;
-        push @line, $pepid;         # seqname
+        # Get contig name from prodigal pep ID - assume "contigname + underscore + number" format
+        my $contigname;
+        if ($pepid =~ m/(\S+)_\d+/) {
+            $contigname = $1;
+        }
+        push @line, $contigname;         # seqname
         push @line, "mitonotate";   # source
         push @line, "CDS";          # feature
         push @line, $pep{$pepid}{"startpos"};     # start
@@ -603,9 +608,10 @@ if ($flags{"writegff"} == 1 ) {
         # Build attribute line
         my @attribs = qw (tmhmm scampi2 gravy pfam mitocogs_cog mitocogs_eval ortho);
         my @attribline;
+        push @attribline, "ID=$pepid;";
          foreach my $attrib (@attribs) {
             if (!defined $pep{$pepid}{$attrib}) {
-                push @line, "$attrib=NA;";
+                push @attribline, "$attrib=NA;";
             } else {
                 if ($attrib eq "pfam") { # For fields that are arrays
                     my $fieldjoin = join ",", @{$pep{$pepid}{$attrib}};
