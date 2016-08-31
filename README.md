@@ -32,7 +32,7 @@ Protein-coding genes (a.a. sequences) are compared against the following databas
 
 Sequence statistics calculated:
 
-* No. of transmembrane domains, by `tmhmm`
+* No. of transmembrane domains, by `tmhmm` and `Scampi2`
 * Hydropathicity score ("GRAVY" score), with BioPerl
 * Sequence length (a.a.)
 

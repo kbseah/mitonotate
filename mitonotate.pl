@@ -133,15 +133,15 @@ my $CPUs = 8;           # Number CPUs for subroutines where applicable
 
 # Lists
 # Dependencies to check
-my @depends = qw (perl cat sed makeblastdb blastp prodigal parallel muscle nhmmer hmmscan FastOrtho tRNAscan-SE tmhmm hhblits addss.pl reformat.pl multithread.pl);
+my @depends = qw (perl cat sed makeblastdb blastp prodigal parallel muscle nhmmer hmmscan FastOrtho tRNAscan-SE tmhmm SCAMPI_run.pl hhblits addss.pl reformat.pl multithread.pl);
 # Outputs to parse (keys to %output_files hash)
 my @toparse = qw (gravy sprot mfannot pfam tmhmm);
 # Flags to check in config file
-my @flags_check = qw (prodigal mitossu mitolsu tRNAscan tmhmm concat_pep FastOrtho FastOrtho_cluster pfam makeblastdb reciprocal gravy sprot mfannot mitocogs hhpred read writetbl advertising);
+my @flags_check = qw (prodigal mitossu mitolsu tRNAscan tmhmm scampi2 concat_pep FastOrtho FastOrtho_cluster pfam makeblastdb reciprocal gravy sprot mfannot mitocogs hhpred read writetbl advertising);
 # DBs to check in config file
 my @db_check = qw (MFANNOT_BLASTDB SWISSPROT_BLASTDB SWISSPROT_FASTA HHPRED_DB PFAM_A MITOCOGS_BLASTDB MITOCOGS_SEQINFO MITOCOGS_COGINFO MTSSU_MODEL MTLSU_MODEL GCODE_FILE);
 # Fields to report (keys to %{pep{...}})
-my @toreport = qw (genome startpos endpos dir length tmhmm gravy pfam sprot_name sprot_eval mfannot_name mfannot_eval mitocogs_hit mitocogs_eval mitocogs_cog mitocogs_func ortho);
+my @toreport = qw (genome startpos endpos dir length tmhmm scampi2 gravy pfam sprot_name sprot_eval mfannot_name mfannot_eval mitocogs_hit mitocogs_eval mitocogs_cog mitocogs_func ortho);
 
 # Hashes for inputs and files
 my %dep_paths;      # Paths to dependencies
@@ -339,6 +339,15 @@ if ($flags{"tmhmm"} == 1) {
     msg ("Skip predict TM helices with tmhmm",0);
 }
 $output_files{"tmhmm"} = "$outfix.tmhmm.out";
+
+# Predict transmembrane helices with Scampi2
+if ($flags{"scampi2"} == 1) {
+    msg ("Predict TM helices with Scampi2",1);
+    do_scampi2($output_files{"concat.pep"},$outfix);
+} else {
+    msg ("Skip predict TM helices with Scampi2",0);
+}
+$output_files{"scampi2"} = "$outfix.scampi2.out";
 
 # Perform reciprocal Blastp for clustering
 if ($flags{"reciprocal"} == 1) {
@@ -672,6 +681,13 @@ sub do_tmhmm {
               "$outpath.tmhmm.out");
 }
 
+sub do_scampi2 {
+    my ($infile, $outpath) = @_;
+    run_prog ("SCAMPI_run.pl",
+              $infile,
+              "$outpath.scampi2.out");
+}
+
 sub do_gravy {
     my ($infile, $outfile) = @_;
     open(GRAVYOUT, "> $outfile")
@@ -857,10 +873,40 @@ sub read_tmhmm {
         if ($_ =~ /# (\S+) Number of predicted TMHs:\s+(\d+)/) {
             #print $1."\t".$2."\n";
             $pep{$1}{"tmhmm"} = $2;
+        }
+    }
+    close(TMHMM);
+}
+
+sub read_scampi2 {
+    my ($infile) = @_;
+    my %seqhash;
+    open(SCAMPI2, "<", $infile)
+      or error ("Cannot open $infile for reading $!",1);
+    my $currseq; # Name of current sequence
+    while (<SCAMPI2>) {
+        # Get output strings for each sequence, from Scampi2 output format
+        chomp;
+        if ($_ =~ m/^>(\S+)/) { # Sequence ID from header, ignore everything after first space
+            $currseq = $1;
+        } else { # Get actual sequence string
+            if ($_ !~ m/^\s+$/) { # Check for blank or whitespace lines
+            if (exists $seqhash{$currseq}) {
+                $seqhash{$currseq} = $seqhash{$currseq}.$_ # Append sequence (in case of linebreaks)
+            } else {
+                $seqhash{$currseq} = $_;
+            }
+        }
+    }
+    }
+    close(SCAMPI2);
+    foreach my $theseq (keys %seqhash) {
+        # Count number of TM domains and save to %pep hash keyed by peptide name
+        my @count = $seqhash{$theseq} =~ m/M+/g;
+        $pep{$theseq}{"scampi2"} = scalar @count;
     }
 }
-close(TMHMM);
-}
+
 
 sub read_gravy {
     my ($infile) = @_;
