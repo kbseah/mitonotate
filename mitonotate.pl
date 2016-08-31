@@ -497,6 +497,9 @@ if ($flags{"read"} == 1) {
     # Hash TMHMM results
     read_tmhmm($output_files{"tmhmm"});
     
+    # Hash Scampi2 results
+    read_scampi2($output_files{"scampi2"});
+    
     # Hash GRAVY scores and peptide lengths
     read_gravy($output_files{"gravy"});
     
