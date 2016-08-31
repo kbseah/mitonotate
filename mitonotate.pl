@@ -137,11 +137,12 @@ my @depends = qw (perl cat sed makeblastdb blastp prodigal parallel muscle nhmme
 # Outputs to parse (keys to %output_files hash)
 my @toparse = qw (gravy sprot mfannot pfam tmhmm);
 # Flags to check in config file
-my @flags_check = qw (prodigal mitossu mitolsu tRNAscan tmhmm scampi2 concat_pep FastOrtho FastOrtho_cluster pfam makeblastdb reciprocal gravy sprot mfannot mitocogs hhpred read writetbl advertising);
+my @flags_check = qw (prodigal mitossu mitolsu tRNAscan tmhmm scampi2 concat_pep FastOrtho FastOrtho_cluster pfam makeblastdb reciprocal gravy sprot mfannot mitocogs hhpred read writetbl writegff advertising);
 # DBs to check in config file
 my @db_check = qw (MFANNOT_BLASTDB SWISSPROT_BLASTDB SWISSPROT_FASTA HHPRED_DB PFAM_A MITOCOGS_BLASTDB MITOCOGS_SEQINFO MITOCOGS_COGINFO MTSSU_MODEL MTLSU_MODEL GCODE_FILE);
 # Fields to report (keys to %{pep{...}})
 my @toreport = qw (genome startpos endpos dir length tmhmm scampi2 gravy pfam sprot_name sprot_eval mfannot_name mfannot_eval mitocogs_hit mitocogs_eval mitocogs_cog mitocogs_func ortho);
+ # NB: Reporting fields for cluster-based annotations are given separately
 
 # Hashes for inputs and files
 my %dep_paths;      # Paths to dependencies
@@ -555,8 +556,15 @@ if ($flags {"writetbl"} == 1) {
         # Cluster annotations
         if (defined $pep{$pepid}{"ortho"}) {
             my $theclust = $pep{$pepid}{"ortho"};
-            push @line, @{$clust{$theclust}{"hhpred"}};
+            if (defined $clust{$theclust}{"hhpred"}) {
+                push @line, @{$clust{$theclust}{"hhpred"}};
+            } else {
+                # catch case where Ortho clustering done but not HHpred annotation
+                push @line, qw(NA NA NA NA NA); # hacky
+            }
+            
         } else {
+            # catch case where Ortho clustering not done
             push @line, qw(NA NA NA NA NA); # hacky
         }
         
@@ -564,9 +572,61 @@ if ($flags {"writetbl"} == 1) {
         print FINALOUT "\n";
     }
     close (FINALOUT);
-    } else {
-        msg ("Skip write annotation to file",0);
+} else {
+    msg ("Skip write annotation to file",0);
 }
+
+# Write GFF3 feature table ################################
+
+if ($flags{"writegff"} == 1 ) {
+    msg ("Write GFF output to file $outfix.mitonotate.gff", 1);
+    
+    open(GFFOUT, "> $outfix.mitonotate.gff")
+      or error ("Cannot open $outfix.mitonotate.gff for writing $!",1);
+    # Seqname source feature start end score strand frame attribute
+    foreach my $pepid (sort {$a cmp $b} keys %pep) {
+        my @line;
+        push @line, $pepid;         # seqname
+        push @line, "mitonotate";   # source
+        push @line, "CDS";          # feature
+        push @line, $pep{$pepid}{"startpos"};     # start
+        push @line, $pep{$pepid}{"endpos"};       # end
+        push @line, ".";            # score
+        if ($pep{$pepid}{"dir"} == -1) {          # strand
+            push @line, "-";
+        } elsif ($pep{$pepid}{"dir"} == 1) {
+            push @line, "+";
+        } else {
+            push @line, ".";
+        }
+        push @line, "0";            # frame
+        # Build attribute line
+        my @attribs = qw (tmhmm scampi2 gravy pfam mitocogs_cog mitocogs_eval ortho);
+        my @attribline;
+         foreach my $attrib (@attribs) {
+            if (!defined $pep{$pepid}{$attrib}) {
+                push @line, "$attrib=NA;";
+            } else {
+                if ($attrib eq "pfam") { # For fields that are arrays
+                    my $fieldjoin = join ",", @{$pep{$pepid}{$attrib}};
+                    push @attribline, "$attrib=$fieldjoin;";
+                } else {
+                    push @attribline, "$attrib=$pep{$pepid}{$attrib};";
+                }
+            }
+        }
+        my $attribjoin = join "", @attribline;
+        push @line, $attribjoin;    # attribute
+        print GFFOUT join "\t", @line;
+        print GFFOUT "\n";
+    }
+    
+    close (GFFOUT);
+} else {
+    msg ("Skip write GFF to file",0);
+}
+
+
 # Clean up and write log file #############################
 
 msg ("Pipeline complete, results in $outdir",1);
