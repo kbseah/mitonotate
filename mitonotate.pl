@@ -64,6 +64,11 @@ in second column. Use template supplied to create your own.
 Genetic code to use for Prodigal ORF prediction (NCBI translation table no.)
 Default: 4
 
+=item --cove <integer>
+
+Cutoff value for COVE score of tRNAscan-SE results.
+Default: 20
+
 =item --cpus|-c <integer>
 
 Number of CPUs for commands that are parallelized.
@@ -129,6 +134,7 @@ my $run_file;           # Table of flags for subroutines
 my $outdir;             # Output folder
 my $prefix;             # Prefix for output files
 my $gencode = 4;        # Genetic code (NCBI translation table no.)
+my $cove_cutoff=20;     # COVE score cutoff for tRNAscan-SE results
 my $CPUs = 8;           # Number CPUs for subroutines where applicable
 
 # Lists
@@ -156,6 +162,7 @@ my %ortholist;      # List of ortholog cluster names
 # Hashes for results
 my %pep;    # Results keyed by ORF name
 my %clust;  # Results keyed by cluster name
+my %trna;   # Results of tRNAscan-SE keyed by sequence name
 
 # Get options or show help
 GetOptions ('fasta|f=s'=>\$fasta_list_file,
@@ -164,6 +171,7 @@ GetOptions ('fasta|f=s'=>\$fasta_list_file,
             'outdir|o=s'=>\$outdir,
             'prefix|p=s'=>\$prefix,
             'gencode|g=i'=>\$gencode,
+            'cove=i'=>\$cove_cutoff,
             'cpus|c=i'=>\$CPUs,
             'help|h'=> sub { pod2usage( -exitstatus => 2, -verbose => 2); },
             'man|m'=> sub { pod2usage ( -exitstatus => 0, -verbose => 2) },
@@ -488,6 +496,25 @@ if ($flags{"read"} == 1) {
                           $thegenome);
     }
     
+    # Hash tRNA annotations from tRNAscan-SE results
+    foreach my $thegenome (keys %fasta_list) {
+        # Catch absurd cove cutoff values
+        if (! $cove_cutoff > 0 && $cove_cutoff < 100) {
+            error("Cove cutoff score outside usual parameters, defaulting to 20",1);
+            $cove_cutoff = 20;
+        }
+        my $prodout = $outdir."/".$thegenome; 
+        my $trnafilename = "$prodout.tRNAscan.out";
+        if (-f $trnafilename) {
+            # Read tRNAscan results
+            read_trnascan($trnafilename,
+                          $thegenome,
+                          $cove_cutoff);
+        } else {
+            msg ("tRNAscan results for $thegenome not found, skipping...", 1);
+        }
+    }
+    
     # Hash pfam tblout results
     read_pfam_tblout($output_files{"pfam"});
     
@@ -594,13 +621,13 @@ if ($flags{"writegff"} == 1 ) {
         if ($pepid =~ m/(\S+)_\d+/) {
             $contigname = $1;
         }
-        push @line, $contigname;         # seqname
-        push @line, "mitonotate";   # source
-        push @line, "CDS";          # feature
-        push @line, $pep{$pepid}{"startpos"};     # start
-        push @line, $pep{$pepid}{"endpos"};       # end
-        push @line, ".";            # score
-        if ($pep{$pepid}{"dir"} == -1) {          # strand
+        push @line, $contigname;                # seqname
+        push @line, "mitonotate";               # source
+        push @line, "CDS";                      # feature
+        push @line, $pep{$pepid}{"startpos"};   # start
+        push @line, $pep{$pepid}{"endpos"};     # end
+        push @line, ".";                        # score
+        if ($pep{$pepid}{"dir"} == -1) {        # strand
             push @line, "-";
         } elsif ($pep{$pepid}{"dir"} == 1) {
             push @line, "+";
@@ -626,6 +653,49 @@ if ($flags{"writegff"} == 1 ) {
         }
         my $attribjoin = join "", @attribline;
         push @line, $attribjoin;    # attribute
+        print GFFOUT join "\t", @line;
+        print GFFOUT "\n";
+    }
+    
+    foreach my $trna_id (sort {$a cmp $b} keys %trna) {
+        my @line;
+        # Seqname source feature start end score strand frame attribute
+        # sequence begin end type anticodon intron_begin intron_end cove
+        
+        # Check for direction of strand
+        my ($thebegin, $theend, $thestrand);
+        if ($trna{$trna_id}{"begin"} > $trna{$trna_id}{"end"}) { # Check for reverse
+            $thebegin = $trna{$trna_id}{"end"};
+            $theend = $trna{$trna_id}{"begin"};
+            $thestrand = "-";
+        } else {
+            $thebegin = $trna{$trna_id}{"begin"};
+            $theend = $trna{$trna_id}{"end"};
+            $thestrand = "+";
+        }
+        
+        # Build attribute entry
+        my @attribs;
+        push @attribs, "ID=$trna_id";
+        my @attribheads = qw (type anticodon intron_begin intron_end);
+        foreach my $tt (@attribheads) {
+            push @attribs, "$tt=$trna{$trna_id}{$tt}";
+        }
+        my $attribjoin = join ";", @attribs;
+        
+        # Build GFF entry
+        push @line, ($trna{$trna_id}{"sequence"},   # sequence
+                     "tRNAscan-SE",                 # source
+                     "tRNA",                        # feature
+                     $thebegin,                     # start
+                     $theend,                       # end
+                     $trna{$trna_id}{"cove"},       # score
+                     $thestrand,                    # strand
+                     ".",                           # frame
+                     $attribjoin
+                    );
+        
+        # Print line to GFF file
         print GFFOUT join "\t", @line;
         print GFFOUT "\n";
     }
@@ -883,7 +953,7 @@ sub do_hhblits {
 sub read_prodigal_pep {
     my ($pepfile, $genome) = @_;
     open(PEP, "<", $pepfile)
-      or error ("Cannot open $pepfile for reading $!", 1);
+      or error ("Cannot open Prodigal peptide prediction file $pepfile for genome $genome, skipping file ... : $!", 1);
     # Get accession numbers of all the protein seq to be annotated
     while (<PEP>) {
         chomp;
@@ -895,6 +965,30 @@ sub read_prodigal_pep {
         }
     }
     close(PEP);
+}
+
+sub read_trnascan {
+    my ($trnafile, $genome, $cove) = @_;
+    open(TRNA, "<", $trnafile)
+      or error ("Cannot open tRNA annotation file $trnafile for genome $genome, skipping file... : $!",1);
+    # Skip header lines...
+    my $skip1 = <TRNA>;
+    my $skip2 = <TRNA>;
+    my $skip3 = <TRNA>;
+    while (<TRNA>) {
+        chomp;
+        my @linesplit = split /\s+/;
+        my $trna_id = join "_", ($linesplit[0],"trna",$linesplit[1]);
+        $trna{$trna_id}{"sequence"} = $linesplit[0]; # Sequence
+        $trna{$trna_id}{"begin"} = $linesplit[2]; # begin pos
+        $trna{$trna_id}{"end"} = $linesplit[3]; # end pos
+        $trna{$trna_id}{"type"} = $linesplit[4]; # tRNA type
+        $trna{$trna_id}{"anticodon"} = $linesplit[5]; # anticodon
+        $trna{$trna_id}{"intron_begin"} = $linesplit[6]; # Intron begin pos
+        $trna{$trna_id}{"intron_end"} = $linesplit[7]; # Intron end pos
+        $trna{$trna_id}{"cove"} = $linesplit[8]; # Cove score
+    }
+    close(TRNA);
 }
 
 sub read_pfam_tblout {
