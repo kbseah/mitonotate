@@ -610,9 +610,8 @@ if ($flags {"writetbl"} == 1) {
 
 if ($flags{"writegff"} == 1 ) {
     msg ("Write GFF output to file $outfix.mitonotate.gff", 1);
-    
-    open(GFFOUT, "> $outfix.mitonotate.gff")
-      or error ("Cannot open $outfix.mitonotate.gff for writing $!",1);
+    my @gffoutarray;
+
     # Seqname source feature start end score strand frame attribute
     foreach my $pepid (sort {$a cmp $b} keys %pep) {
         my @line;
@@ -653,8 +652,8 @@ if ($flags{"writegff"} == 1 ) {
         }
         my $attribjoin = join "", @attribline;
         push @line, $attribjoin;    # attribute
-        print GFFOUT join "\t", @line;
-        print GFFOUT "\n";
+        my $joinedline = join "\t", @line;
+        push @gffoutarray, $joinedline;
     }
     
     foreach my $trna_id (sort {$a cmp $b} keys %trna) {
@@ -696,10 +695,23 @@ if ($flags{"writegff"} == 1 ) {
                     );
         
         # Print line to GFF file
-        print GFFOUT join "\t", @line;
-        print GFFOUT "\n";
+        my $joinedline = join "\t", @line;
+        push @gffoutarray, $joinedline;
     }
     
+    # Sort the GFF lines by sequence name (col 1) and start pos (col 4)
+    # Code from: http://www.tek-tips.com/faqs.cfm?fid=6545
+    my @sortedline = map {$_->[0]}
+                     sort { $a->[1] cmp $b->[1] ||
+                            $a->[4] <=> $b->[4] }
+                     map {chomp;[$_, split (/\t/)]} @gffoutarray;
+
+    # Write to file
+    open(GFFOUT, "> $outfix.mitonotate.gff")
+      or error ("Cannot open $outfix.mitonotate.gff for writing $!",1);
+    foreach my $lineout (@sortedline) {
+        print GFFOUT $lineout."\n";
+    }
     close (GFFOUT);
 } else {
     msg ("Skip write GFF to file",0);
