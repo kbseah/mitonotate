@@ -135,6 +135,7 @@ my $outdir;             # Output folder
 my $prefix;             # Prefix for output files
 my $gencode = 4;        # Genetic code (NCBI translation table no.)
 my $cove_cutoff=20;     # COVE score cutoff for tRNAscan-SE results
+my $nhmmer_cutoff=100;  # Bitscore cutoff for nhmmer mito rRNA results
 my $CPUs = 8;           # Number CPUs for subroutines where applicable
 
 # Lists
@@ -163,6 +164,7 @@ my %ortholist;      # List of ortholog cluster names
 my %pep;    # Results keyed by ORF name
 my %clust;  # Results keyed by cluster name
 my %trna;   # Results of tRNAscan-SE keyed by sequence name
+my %rrna;   # Results of nhmmer keyed by sequence ID
 
 # Get options or show help
 GetOptions ('fasta|f=s'=>\$fasta_list_file,
@@ -515,6 +517,30 @@ if ($flags{"read"} == 1) {
         }
     }
     
+    # Hash rRNA annotations from nhmmer results
+    foreach my $thegenome (keys %fasta_list) {
+        my $prodout = $outdir."/".$thegenome;
+        # LSU
+        my $lsufilename = "$prodout.nhmmer.mitolsu.tblout";
+        if (-f $lsufilename) {
+            read_rrna ($lsufilename,
+                       "mtLSU",
+                       $thegenome);
+        } else {
+            msg ("nhmmer results for $thegenome Mt LSU rRNA not found, skipping ... ", 1);
+        }
+        # SSU
+        my $ssufilename = "$prodout.nhmmer.mitossu.tblout";
+        if (-f $ssufilename) {
+            read_rrna ($ssufilename,
+                       "mtSSU",
+                       $thegenome);
+        } else {
+            msg ("nhmmer results for $thegenome Mt SSU rRNA not found, skipping ... ", 1);
+        }
+        
+    }
+    
     # Hash pfam tblout results
     read_pfam_tblout($output_files{"pfam"});
     
@@ -697,6 +723,41 @@ if ($flags{"writegff"} == 1 ) {
         # Print line to GFF file
         my $joinedline = join "\t", @line;
         push @gffoutarray, $joinedline;
+    }
+    
+    foreach my $rrna_id (sort {$a cmp $b} keys %rrna) {
+        my @line;
+        #sequence type alifrom alito envfrom envto strand eval
+        # nhmmer_eval
+        
+        # Check evalue
+        if ($rrna{$rrna_id}{"score"} > $nhmmer_cutoff) {
+            # Build attributes field
+            my @attribs;
+            push @attribs, "ID=$rrna_id";
+            my @attribheads = qw (type envfrom envto eval);
+            foreach my $tt (@attribheads) {
+                push @attribs, "$tt=$rrna{$rrna_id}{$tt}";
+            }
+            my $attribjoin = join ";", @attribs;
+            
+            # Build GFF entry
+            push @line, ($rrna{$rrna_id}{"sequence"},   # sequence
+                         "nhmmer",                      # source
+                         "rRNA",                        # feature
+                         $rrna{$rrna_id}{"alifrom"},    # start
+                         $rrna{$rrna_id}{"alito"},      # end
+                         $rrna{$rrna_id}{"score"},       # score
+                         $rrna{$rrna_id}{"strand"},     # strand
+                         ".",                           # frame
+                         $attribjoin
+                         );
+            
+            # print line to GFF file
+            my $joinedline = join "\t", @line;
+            push @gffoutarray, $joinedline;
+        }
+        
     }
     
     # Sort the GFF lines by sequence name (col 1) and start pos (col 4)
@@ -1001,6 +1062,39 @@ sub read_trnascan {
         $trna{$trna_id}{"cove"} = $linesplit[8]; # Cove score
     }
     close(TRNA);
+}
+
+sub read_rrna {
+    my ($nhmmerfile, $type, $genome) = @_;
+    open(RRNA, "<", $nhmmerfile)
+      or error ("Cannot open rRNA annotation file $nhmmerfile for genome $genome, skipping file... : $!",1);
+    my $count = 1;
+    while (<RRNA>) {
+        chomp;
+        #sequence type alifrom alito envfrom envto strand eval
+        if ($_ !~ m/^#/) { # If not a comment line
+            my @linesplit = split /\s+/;
+            my $ID = $linesplit[0]."_".$type."_".$count;
+            $rrna{$ID}{"sequence"} = $linesplit[0];
+            $rrna{$ID}{"type"} = $type;
+            if ($linesplit[11] eq "-") {
+                $rrna{$ID}{"alifrom"} = $linesplit[7];
+                $rrna{$ID}{"alito"} = $linesplit[6];
+                $rrna{$ID}{"envfrom"} = $linesplit[9];
+                $rrna{$ID}{"envto"} = $linesplit[8];
+            } else {
+                $rrna{$ID}{"alifrom"} = $linesplit[6];
+                $rrna{$ID}{"alito"} = $linesplit[7];
+                $rrna{$ID}{"envfrom"} = $linesplit[8];
+                $rrna{$ID}{"envto"} = $linesplit[9];
+            }
+            $rrna{$ID}{"strand"} = $linesplit[11];
+            $rrna{$ID}{"eval"} = $linesplit[12];
+            $rrna{$ID}{"score"} = $linesplit[13];
+            $count++;
+        }
+    }
+    close(RRNA);
 }
 
 sub read_pfam_tblout {
