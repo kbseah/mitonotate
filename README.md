@@ -47,6 +47,8 @@ Ortholog clustering is performed with FastOrtho:
 
 Results are combined into a single tab-separated table, sorted by the protein sequence ID. Actual assignment of a product name has to be done manually, especially for putative distant homologs.
 
+Coordinates of genomic features (CDSs, rRNAs, and tRNAs) are also written in GFF3 format. 
+
 Output from intermediate steps are also saved, to allow for troubleshooting.
 
 ## Configuring the annotation run
@@ -54,6 +56,8 @@ Output from intermediate steps are also saved, to allow for troubleshooting.
 `Mitonotate` requires three configuration files to tell it where to look for input, databases, and which steps in the pipeline to run.
 
 Descriptions of the input files are given in the built-in help message.
+
+Cutoff-scores for the tRNA (`tRNAscan-SE` Cove score) and rRNA (`nhmmer` bitscore) predictions can be given at the command line with options `--cove` and `--nhmmer_cutoff` respectively.
 
 Templates for each input file are supplied with the script. It is recommended to build your run by modifying the supplied templates, and not by writing your own configuration files from scratch.
 

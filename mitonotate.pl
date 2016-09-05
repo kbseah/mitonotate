@@ -69,6 +69,11 @@ Default: 4
 Cutoff value for COVE score of tRNAscan-SE results.
 Default: 20
 
+=item --nhmmer_cutoff <integer>
+
+Cutoff value of bitscore for nhmmer prediction of Mt rRNA genes.
+Default: 100
+
 =item --cpus|-c <integer>
 
 Number of CPUs for commands that are parallelized.
@@ -174,6 +179,7 @@ GetOptions ('fasta|f=s'=>\$fasta_list_file,
             'prefix|p=s'=>\$prefix,
             'gencode|g=i'=>\$gencode,
             'cove=i'=>\$cove_cutoff,
+            'nhmmer_cutoff=i'=>\$nhmmer_cutoff,
             'cpus|c=i'=>\$CPUs,
             'help|h'=> sub { pod2usage( -exitstatus => 2, -verbose => 2); },
             'man|m'=> sub { pod2usage ( -exitstatus => 0, -verbose => 2) },
