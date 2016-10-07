@@ -4,6 +4,10 @@ by Brandon Seah (kbseah@mpi-bremen.de)
 
 Annotation pipeline for ciliate mitochondrial genomes.
 
+Cite with DOI: 10.5281/zenodo.159532
+
+[![DOI](https://www.zenodo.org/badge/59751545.svg)](https://www.zenodo.org/badge/latestdoi/59751545)
+
 Please refer to built-in help message for more information.
 
 ```bash
